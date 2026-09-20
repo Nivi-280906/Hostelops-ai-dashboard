@@ -220,7 +220,13 @@ def login():
     """Body: {id_token}. id_token comes from the frontend having just
     called firebase.auth().signInWithEmailAndPassword()."""
     body = request.get_json(silent=True) or {}
-    result = auth.sync_login(id_token=body.get("id_token", ""))
+    try:
+        result = auth.sync_login(id_token=body.get("id_token", ""))
+    except Exception as e:
+        # Same reasoning as /api/signup: surface the real cause as JSON
+        # instead of a bare 500 with no message reaching the frontend.
+        import traceback; traceback.print_exc()
+        return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
     if "error" in result:
         return jsonify(result), 401
     return jsonify(result)
@@ -318,24 +324,14 @@ def list_users():
     return jsonify(db.get_users_for_college(college_name) if college_name else [])
 
 
-@app.route("/api/users", methods=["POST"])
-@require_auth(role="admin")
-def create_user():
-    body = request.get_json(silent=True) or {}
-    username = (body.get("username") or "").strip()
-    password = body.get("password") or ""
-    role = body.get("role", "staff")
-
-    if not username or not password:
-        return jsonify({"error": "username and password are required"}), 400
-    if role not in ("admin", "staff"):
-        return jsonify({"error": "role must be 'admin' or 'staff'"}), 400
-    if db.get_user_by_username(username):
-        return jsonify({"error": "That username already exists"}), 409
-
-    db.insert_user(username, auth.hash_password(password), role=role,
-                    college_name=request.user.get("college_name"))
-    return jsonify({"status": "created", "username": username, "role": role}), 201
+# NOTE: There used to be a POST /api/users route here ("Create Staff/Admin
+# Account") that created a locally-password-hashed account. It's removed:
+# the whole app authenticates via Firebase ID tokens now (see /api/login),
+# so a locally-hashed account could never actually log in through this
+# system, and it called an auth.hash_password() that doesn't exist anyway.
+# The corresponding frontend form was already removed earlier; this deletes
+# the dead/broken backend route to match, rather than leaving a guaranteed-
+# to-crash endpoint live in production.
 
 
 @app.route("/api/users/<int:user_id>", methods=["DELETE"])
@@ -1545,4 +1541,15 @@ def chatbot_query():
 if __name__ == "__main__":
     db.init_db()
     auth.seed_default_users()
-    app.run(debug=True, port=5000)
+    # Render (and most PaaS hosts) assign the port via $PORT and expect the
+    # server to bind 0.0.0.0, not localhost. debug=True must never run in
+    # production - it exposes an interactive remote code execution console
+    # (the Werkzeug debugger) on any unhandled exception. This block only
+    # matters for local dev anyway - gunicorn (used in production) imports
+    # `app` directly and never executes this block at all.
+    is_production = bool(os.environ.get("PORT"))
+    app.run(
+        debug=not is_production,
+        host="0.0.0.0" if is_production else "127.0.0.1",
+        port=int(os.environ.get("PORT", 5000)),
+    )
