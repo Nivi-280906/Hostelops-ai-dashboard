@@ -35,6 +35,14 @@ FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "frontend")
 
 app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path="")
 
+# Must run unconditionally at import time, not just inside `if __name__ ==
+# "__main__"` - gunicorn (used in production, e.g. `gunicorn backend_api:app`)
+# only imports this module and never executes that block, so the database
+# schema would never get created there otherwise (this was the actual cause
+# of "OperationalError: no such table: users" on Render).
+db.init_db()
+auth.seed_default_users()
+
 
 @app.route("/")
 def serve_landing():
@@ -1539,8 +1547,6 @@ def chatbot_query():
 
 
 if __name__ == "__main__":
-    db.init_db()
-    auth.seed_default_users()
     # Render (and most PaaS hosts) assign the port via $PORT and expect the
     # server to bind 0.0.0.0, not localhost. debug=True must never run in
     # production - it exposes an interactive remote code execution console
