@@ -220,7 +220,13 @@ def login():
     """Body: {id_token}. id_token comes from the frontend having just
     called firebase.auth().signInWithEmailAndPassword()."""
     body = request.get_json(silent=True) or {}
-    result = auth.sync_login(id_token=body.get("id_token", ""))
+    try:
+        result = auth.sync_login(id_token=body.get("id_token", ""))
+    except Exception as e:
+        # Same reasoning as /api/signup: surface the real cause as JSON
+        # instead of a bare 500 with no message reaching the frontend.
+        import traceback; traceback.print_exc()
+        return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
     if "error" in result:
         return jsonify(result), 401
     return jsonify(result)
