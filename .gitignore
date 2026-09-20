@@ -1,0 +1,12 @@
+# Secrets - NEVER commit real values
+firebase-service-account.json
+*.env
+.env*
+
+# Python
+__pycache__/
+*.pyc
+
+# Generated at runtime by setup_project.py
+hostel_data.db
+models/*.joblib

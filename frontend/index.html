@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HostelOps — AI-Driven Resource Optimization Platform</title>
+<!-- Google Fonts: Plus Jakarta Sans, Inter, JetBrains Mono -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- Locally vendored Chart.js -->
+<script src="vendor/chart.umd.js"></script>
+<!-- Firebase Authentication (client SDK) - fill in your project's config
+     in firebase-config.js before running the app. -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="firebase-config.js"></script>
+<link rel="stylesheet" href="style.css?v=1">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
+<style>
+  /* ===== Restyle only the real login screen to the new palette ===== */
+  #loginScreen.login-screen {
+    background: #051747;
+  }
+  #loginScreen .login-bg {
+    background-image: url('assets/desk-headphones.png');
+    background-size: cover;
+    background-position: center;
+  }
+  #loginScreen .login-bg::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(5,23,71,0.55) 0%, rgba(5,23,71,0.45) 40%, rgba(5,23,71,0.94) 100%);
+  }
+  #loginScreen .login-mesh, #loginScreen .glow-orb { display: none; }
+  #loginScreen .login-card {
+    background: #FEFEFE;
+    border: none;
+    box-shadow: 0 30px 70px -20px rgba(5,23,71,0.5);
+  }
+  #loginScreen .login-card::before { display: none; }
+  #loginScreen .brand-mark { background: #081F62; color: #FEFEFE; }
+  #loginScreen .brand-name { color: #051747; font-family: 'Fraunces', serif; }
+  #loginScreen .brand-name span { color: #081F62; }
+  #loginScreen .brand-sub { color: #535F80; }
+  #loginScreen .field-label { color: #535F80; }
+  #loginScreen .field input, #loginScreen .field select {
+    background: #FEFEFE; border: 1px solid rgba(5,23,71,0.16); color: #051747;
+  }
+  #loginScreen .field input:focus, #loginScreen .select:focus {
+    outline: none; border-color: #081F62; background: #FEFEFE;
+    box-shadow: 0 0 0 3px rgba(8,31,98,0.15); /* navy focus ring, not the default amber one */
+  }
+  #loginScreen .auth-tabs { background: #E7E9F0; }
+  #loginScreen .auth-tab { color: #535F80; }
+  #loginScreen .auth-tab.active { background: #081F62; color: #FEFEFE; }
+  #loginScreen .btn-primary { background: #051747; border-color: #051747; color: #FEFEFE; box-shadow: none; }
+  #loginScreen .btn-primary:hover {
+    background: #081F62; border-color: #081F62; color: #FEFEFE;
+    box-shadow: 0 8px 24px rgba(5,23,71,0.35); /* navy glow, not the default amber one */
+    filter: none;
+  }
+  #loginScreen .link-btn { color: #081F62; }
+
+  /* ===== Restyle the post-signup "add your hostels" screen to match ===== */
+  #onboardScreen.login-screen { background: #051747; }
+  #onboardScreen .login-bg, #onboardScreen .glow-orb, #onboardScreen .login-mesh { display: none; }
+  #onboardScreen .login-card {
+    background: #FEFEFE; border: none;
+    box-shadow: 0 30px 70px -20px rgba(5,23,71,0.5);
+  }
+  #onboardScreen .login-card::before { display: none; }
+  #onboardScreen .brand-mark { background: #081F62; color: #FEFEFE; box-shadow: none; }
+  #onboardScreen .brand-name { color: #051747; font-family: 'Fraunces', serif; }
+  #onboardScreen .brand-name span { background: none; -webkit-text-fill-color: #051747; color: #051747; }
+  #onboardScreen .brand-sub { color: #535F80; }
+  #onboardScreen .field-label { color: #535F80; }
+  #onboardScreen .field input, #onboardScreen .field select {
+    background: #FEFEFE; border: 1px solid rgba(5,23,71,0.16); color: #051747;
+  }
+  #onboardScreen .field input:focus, #onboardScreen .select:focus {
+    outline: none; border-color: #081F62; background: #FEFEFE;
+    box-shadow: 0 0 0 3px rgba(8,31,98,0.15);
+  }
+  #onboardScreen .onboard-hostel-row { background: #E7E9F0; border-color: rgba(5,23,71,0.12); color: #051747; }
+  #onboardScreen .btn-primary { background: #051747; border-color: #051747; color: #FEFEFE; box-shadow: none; }
+  #onboardScreen .btn-primary:hover {
+    background: #081F62; border-color: #081F62; color: #FEFEFE;
+    box-shadow: 0 8px 24px rgba(5,23,71,0.35); filter: none;
+  }
+
+  /* ---- Two-panel layout ---- */
+  #loginScreen.login-screen { display: block; }
+  .login-shell { min-height: 100vh; display: grid; grid-template-columns: 44% 56%; }
+  .login-art { position: relative; overflow: hidden; }
+  .login-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .login-art-body { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; justify-content: space-between; padding: 46px 44px; }
+  .login-art-copy h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 34px; line-height: 1.16; color: #FEFEFE; margin: 0 0 14px; max-width: 9em; }
+  .login-art-copy p { color: rgba(254,254,254,0.7); font-size: 14px; line-height: 1.6; max-width: 26em; margin: 0; }
+  .login-art-stats { display: flex; gap: 24px; margin-top: 24px; border-top: 1px solid rgba(254,254,254,0.18); padding-top: 18px; }
+  .login-art-stats div b { display: block; font-family: 'Fraunces', serif; font-size: 18px; color: #FEFEFE; }
+  .login-art-stats div span { color: rgba(254,254,254,0.55); font-size: 11px; }
+  .login-panel { display: flex; align-items: center; justify-content: center; padding: 40px 32px; background: #FEFEFE; }
+  #loginScreen .login-card { position: static; width: 100%; max-width: 400px; margin: 0; box-shadow: none; padding: 0; }
+
+  /* ---- Admin/Warden signup role toggle ---- */
+  .role-row { display: flex; gap: 8px; margin-bottom: 4px; }
+  .role-row button {
+    flex: 1; font-family: inherit; font-size: 13px; font-weight: 600; padding: 9px 0;
+    border-radius: 7px; border: 1px solid rgba(5,23,71,0.16); background: transparent;
+    color: #535F80; cursor: pointer;
+  }
+  .role-row button.active { background: #081F62; border-color: #081F62; color: #FEFEFE; }
+  .pending-note {
+    font-size: 12px; color: #081F62; background: rgba(8,31,98,0.06);
+    border-left: 2px solid #081F62; padding: 10px 12px; line-height: 1.5;
+  }
+  .type-row { display: flex; gap: 8px; margin-top: 4px; }
+  .type-row label {
+    flex: 1; text-align: center; font-size: 12.5px; font-weight: 600; padding: 8px 0;
+    border-radius: 7px; border: 1px solid rgba(5,23,71,0.16); color: #535F80; cursor: pointer;
+  }
+  .type-row input { display: none; }
+  .type-row label:has(input:checked) { background: #E7E9F0; border-color: #081F62; color: #051747; }
+  .field-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  @media (max-width: 860px) {
+    .login-shell { grid-template-columns: 1fr; }
+    .login-art { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============== LOGIN / SIGNUP SCREEN ============== -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-shell">
+
+    <div class="login-art">
+      <img src="assets/desk-headphones.png" alt="Warden working at a desk with a laptop">
+      <div class="login-art-body">
+        <div class="login-brand">
+          <div class="brand-mark">HO</div>
+          <div>
+            <div class="brand-name">HOSTEL<span>OPS</span></div>
+            <div class="brand-sub">AI Resource Optimization Platform</div>
+          </div>
+        </div>
+        <div class="login-art-copy">
+          <h1>Every meter, read. Every floor, accounted for.</h1>
+          <p>Electricity, water and Wi-Fi usage tracked room by room, with AI forecasts and anomaly alerts your wardens can act on the same day.</p>
+          <div class="login-art-stats">
+            <div><b>3</b><span>utilities tracked</span></div>
+            <div><b>Daily</b><span>AI forecasts</span></div>
+            <div><b>Floor</b><span>level access</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="login-panel">
+    <div class="login-card">
+
+    <div class="auth-tabs">
+      <button type="button" class="auth-tab active" id="tabSignIn">Sign In</button>
+      <button type="button" class="auth-tab" id="tabSignUp">Sign Up</button>
+    </div>
+
+    <!-- Sign in with an existing account -->
+    <form id="loginForm" class="login-form">
+      <label class="field">
+        <span class="field-label">Email or username</span>
+        <input type="text" id="loginUsername" autocomplete="username" required>
+      </label>
+      <label class="field">
+        <span class="field-label">Password</span>
+        <input type="password" id="loginPassword" autocomplete="current-password" required>
+      </label>
+      <button type="button" class="link-btn login-forgot-link" id="forgotPasswordLink">Forgot password?</button>
+      <div id="loginError" class="login-error" hidden></div>
+      <button type="submit" class="btn btn-primary btn-block" id="loginSubmitBtn">
+        <span>Sign In</span>
+      </button>
+    </form>
+
+    <!-- Forgot password: request a reset link -->
+    <form id="forgotForm" class="login-form" hidden>
+      <div class="login-hint login-hint-lead">Enter your account email and we'll generate a password reset link.</div>
+      <label class="field">
+        <span class="field-label">Email</span>
+        <input type="email" id="forgotEmail" autocomplete="email" required>
+      </label>
+      <div id="forgotError" class="login-error" hidden></div>
+      <div id="forgotSuccess" class="login-success" hidden>
+        <div class="login-success-title">✓ Reset link generated</div>
+        <div class="login-success-body" id="forgotSuccessBody"></div>
+        <button type="button" class="btn btn-primary btn-block" id="forgotContinueBtn" hidden>Continue to reset password</button>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="forgotSubmitBtn">
+        <span>Send Reset Link</span>
+      </button>
+      <button type="button" class="link-btn login-back-link" id="backToSignInFromForgot">← Back to sign in</button>
+    </form>
+
+    <!-- Reset password: consume the token, set a new password -->
+    <form id="resetForm" class="login-form" hidden>
+      <div class="login-hint login-hint-lead">Choose a new password for your account.</div>
+      <label class="field">
+        <span class="field-label">New password</span>
+        <input type="password" id="resetNewPassword" autocomplete="new-password" minlength="6" required>
+      </label>
+      <label class="field">
+        <span class="field-label">Confirm new password</span>
+        <input type="password" id="resetConfirmPassword" autocomplete="new-password" minlength="6" required>
+      </label>
+      <div id="resetError" class="login-error" hidden></div>
+      <button type="submit" class="btn btn-primary btn-block" id="resetSubmitBtn">
+        <span>Update Password</span>
+      </button>
+      <button type="button" class="link-btn login-back-link" id="backToSignInFromReset">← Back to sign in</button>
+    </form>
+
+    <!-- Register a new college (admin) or request a hostel floor (warden) -->
+    <form id="signupForm" class="login-form" hidden>
+
+      <div class="role-row" id="signupRoleRow">
+        <button type="button" class="active" data-role="admin">Admin</button>
+        <button type="button" data-role="warden">Warden</button>
+      </div>
+
+      <div class="pending-note" id="wardenPendingNote" hidden>
+        Warden accounts stay pending until your college admin approves the request.
+      </div>
+
+      <label class="field">
+        <span class="field-label">College name</span>
+        <input type="text" id="signupCollege" placeholder="e.g. BIT, Sathyamangalam" autocomplete="organization" required>
+      </label>
+
+      <div id="adminOnlyFields">
+        <label class="field">
+          <span class="field-label">Hostel name</span>
+          <input type="text" id="signupHostelName" placeholder="e.g. Girls Hostel Narmadha" required>
+        </label>
+        <label class="field">
+          <span class="field-label">Hostel type</span>
+          <select id="signupHostelType" class="select">
+            <option value="girls">Girls Hostel</option>
+            <option value="boys">Boys Hostel</option>
+            <option value="co-ed">Co-ed Hostel</option>
+          </select>
+        </label>
+      </div>
+
+      <div id="wardenOnlyFields" hidden>
+        <label class="field">
+          <span class="field-label">Hostel type</span>
+          <div class="type-row">
+            <label><input type="radio" name="signupHostelType" value="girls" checked><span>Girls</span></label>
+            <label><input type="radio" name="signupHostelType" value="boys"><span>Boys</span></label>
+          </div>
+        </label>
+        <div class="field-row-2">
+          <label class="field">
+            <span class="field-label">Hostel</span>
+            <select id="signupHostelSelect" class="select"><option value="">Select hostel…</option></select>
+          </label>
+          <label class="field">
+            <span class="field-label">Floor</span>
+            <select id="signupFloorSelect" class="select"><option value="">Select floor…</option></select>
+          </label>
+        </div>
+      </div>
+
+      <label class="field">
+        <span class="field-label">Email</span>
+        <input type="email" id="signupEmail" autocomplete="email" required>
+      </label>
+      <label class="field">
+        <span class="field-label">Password</span>
+        <input type="password" id="signupPassword" autocomplete="new-password" minlength="6" required>
+      </label>
+      <div id="signupError" class="login-error" hidden></div>
+      <button type="submit" class="btn btn-primary btn-block" id="signupSubmitBtn">
+        <span>Create College Account</span>
+      </button>
+
+      <div id="signupPendingSuccess" class="login-success" hidden>
+        <div class="login-success-title">✓ Request sent</div>
+        <div class="login-success-body">
+          Your warden account request has been submitted. You'll be able to sign in
+          once your college admin approves it.
+        </div>
+        <button type="button" class="btn btn-primary btn-block" id="signupPendingBackBtn">Back to sign in</button>
+      </div>
+    </form>
+
+    </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== HOSTEL ONBOARDING (shown after signup, before dashboard) ============== -->
+<div id="onboardScreen" class="login-screen" hidden>
+  <div class="login-bg">
+    <div class="glow-orb glow-orb-1"></div>
+    <div class="glow-orb glow-orb-2"></div>
+    <div class="login-mesh"></div>
+  </div>
+  <div class="login-card onboard-card">
+    <div class="login-brand">
+      <div class="brand-mark">HO</div>
+      <div>
+        <div class="brand-name" id="onboardCollegeName">YOUR COLLEGE</div>
+        <div class="brand-sub">Add your hostels to get started</div>
+      </div>
+    </div>
+
+    <form id="addHostelForm" class="login-form onboard-form">
+      <label class="field">
+        <span class="field-label">Hostel name</span>
+        <input type="text" id="hostelNameInput" placeholder="e.g. Girls Hostel Narmadha" required>
+      </label>
+      <label class="field">
+        <span class="field-label">Type</span>
+        <select id="hostelTypeInput" class="select">
+          <option value="girls">Girls Hostel</option>
+          <option value="boys">Boys Hostel</option>
+          <option value="co-ed">Co-ed Hostel</option>
+        </select>
+      </label>
+      <div id="addHostelError" class="login-error" hidden></div>
+      <button type="submit" class="btn btn-primary btn-block" id="addHostelBtn"><span>+ Add Hostel</span></button>
+    </form>
+
+    <ul class="onboard-list" id="onboardHostelList"></ul>
+
+    <button type="button" class="btn btn-primary btn-block" id="onboardContinueBtn" hidden>
+      Continue to Dashboard →
+    </button>
+  </div>
+</div>
+
+<!-- ============== APP SHELL ============== -->
+<div id="app" class="app" hidden>
+
+  <!-- Sidebar Icon Rail -->
+  <nav class="rail" id="mainRail">
+    <div class="rail-mark" title="HostelOps AI Platform">HO</div>
+    
+    <button class="rail-btn active" data-section="overview" title="Dashboard Overview">
+      <svg viewBox="0 0 24 24"><rect x="3" y="13" width="4" height="8"/><rect x="10" y="8" width="4" height="13"/><rect x="17" y="3" width="4" height="18"/></svg>
+      <span class="rail-tooltip">Overview</span>
+    </button>
+
+    <button class="rail-btn admin-only" data-section="comparison" title="Multi-Hostel Benchmarking">
+      <svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-3"/><rect x="7" y="9" width="2" height="2"/><rect x="7" y="13" width="2" height="2"/><rect x="7" y="17" width="2" height="2"/></svg>
+      <span class="rail-tooltip">Hostels Comparison</span>
+    </button>
+
+    <button class="rail-btn" data-section="electricity" title="Electricity Monitoring">
+      <svg viewBox="0 0 24 24"><polygon points="13,2 3,14 11,14 9,22 21,9 13,9"/></svg>
+      <span class="rail-tooltip">Electricity</span>
+    </button>
+
+    <button class="rail-btn" data-section="water" title="Water Monitoring & Leakage">
+      <svg viewBox="0 0 24 24"><path d="M12 2s7 8.5 7 13a7 7 0 0 1-14 0c0-4.5 7-13 7-13z"/></svg>
+      <span class="rail-tooltip">Water</span>
+    </button>
+
+    <button class="rail-btn" data-section="wifi" title="Wi-Fi & Bandwidth Monitoring">
+      <svg viewBox="0 0 24 24"><path d="M5 12a11 11 0 0 1 14 0M8.5 15.5a6.5 6.5 0 0 1 7 0M12 19v.01" stroke-linecap="round"/></svg>
+      <span class="rail-tooltip">Wi-Fi</span>
+    </button>
+
+    <button class="rail-btn" data-section="predictions" title="AI Forecasting & Occupancy">
+      <svg viewBox="0 0 24 24"><path d="M3 17l5-5 4 4 8-9M14 7h6v6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="rail-tooltip">Predictions</span>
+    </button>
+
+    <button class="rail-btn" data-section="alerts" title="Anomalies & Explainable AI">
+      <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 4-2 5-2 6h18c0-1-2-2-2-6a7 7 0 0 0-7-7z"/><path d="M9 20a3 3 0 0 0 6 0"/></svg>
+      <span class="rail-tooltip">Anomalies &amp; XAI</span>
+    </button>
+
+    <button class="rail-btn" data-section="simulator" title="What-If Optimization Simulator">
+      <svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+      <span class="rail-tooltip">What-If Simulator</span>
+    </button>
+
+    <button class="rail-btn" data-section="maintenance" title="Closed-Loop Maintenance">
+      <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      <span class="rail-tooltip">Maintenance</span>
+    </button>
+
+    <button class="rail-btn" data-section="reports" title="Operational Reports">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <span class="rail-tooltip">Reports</span>
+    </button>
+
+    <button class="rail-btn admin-warden-only" data-section="efficiency" title="Room Efficiency (Admin/Warden)">
+      <svg viewBox="0 0 24 24"><path d="M4 21V9M10 21V3M16 21v-7M22 21H2" stroke-linecap="round"/></svg>
+      <span class="rail-tooltip">Room Efficiency</span>
+    </button>
+
+    <button class="rail-btn admin-only" data-section="admin" title="Admin Control Center">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+      <span class="rail-tooltip">Admin Panel</span>
+    </button>
+
+    <button class="rail-btn warden-only" data-section="profile" title="My Profile">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+      <span class="rail-tooltip">My Profile</span>
+    </button>
+
+    <div class="rail-spacer"></div>
+
+    <button class="rail-btn" id="logoutBtn" title="Log out">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="rail-tooltip">Logout</span>
+    </button>
+  </nav>
+
+  <!-- Main Container -->
+  <div class="main">
+    
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="brand-name small">HOSTEL<span>OPS</span></div>
+      </div>
+      
+      <div class="topbar-center">
+        <span class="live-dot" id="liveDot"></span>
+        <span class="live-label">LIVE</span>
+        <span class="live-clock" id="liveClock">--:--:--</span>
+        <span class="live-sep">·</span>
+        <span class="live-updated" id="lastUpdated">connecting…</span>
+      </div>
+
+      <div class="topbar-right">
+        <!-- AI Assistant Quick Launch -->
+        <button type="button" class="btn btn-secondary btn-sm" id="chatbotToggleBtn" title="Open AI Chatbot">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>AI Assistant</span>
+        </button>
+
+        <!-- Notification Bell -->
+        <div class="notif-wrap">
+          <button type="button" class="icon-btn" id="notifBtn" title="Notifications">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="badge" id="notifBadge" hidden>0</span>
+          </button>
+          <div class="notif-popover" id="notifPopover" hidden>
+            <div class="notif-head">
+              <h4>Notifications</h4>
+              <button type="button" class="link-btn" id="markAllReadBtn">Mark read</button>
+            </div>
+            <div class="notif-list" id="notifList"></div>
+          </div>
+        </div>
+
+        <label class="refresh-toggle">
+          <input type="checkbox" id="autoRefreshToggle" checked>
+          <span>Auto</span>
+        </label>
+
+        <select id="refreshInterval" class="mini-select">
+          <option value="10000">10s</option>
+          <option value="15000" selected>15s</option>
+          <option value="30000">30s</option>
+          <option value="60000">60s</option>
+        </select>
+
+        <div class="user-chip">
+          <span class="tag" id="roleTag">—</span>
+          <span id="usernameLabel">—</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Context Toolbar -->
+    <div class="toolbar">
+      <div class="toolbar-group" id="hostelSelectGroup">
+        <label class="toolbar-label">Hostel</label>
+        <select id="hostelSelect" class="select"></select>
+      </div>
+
+      <div class="toolbar-group" id="roomSelectGroup">
+        <label class="toolbar-label">Room</label>
+        <select id="roomSelect" class="select"></select>
+      </div>
+
+      <div class="toolbar-group" id="scopeSelectGroup">
+        <label class="toolbar-label" title="View a single room, a whole floor's total, or the whole hostel's total">
+          View <span class="hint">?</span>
+        </label>
+        <select id="scopeSelect" class="select">
+          <option value="room">Room</option>
+          <option value="floor">Floor (total)</option>
+          <option value="hostel">Hostel (total)</option>
+        </select>
+      </div>
+
+      <div class="toolbar-group" id="floorSelectGroup" hidden>
+        <label class="toolbar-label">Floor</label>
+        <select id="floorSelect" class="select"></select>
+      </div>
+
+      <div class="toolbar-group" id="historyGroup">
+        <label class="toolbar-label" title="Historical readings window loaded for charts">
+          History <span class="hint">?</span>
+        </label>
+        <input type="range" id="historySlider" min="14" max="150" value="60" step="1">
+        <span class="range-value" id="historyValue">60d</span>
+      </div>
+
+      <div class="toolbar-group" id="horizonGroup">
+        <label class="toolbar-label" title="Days ahead forecasted by the AI model">
+          Forecast Horizon <span class="hint">?</span>
+        </label>
+        <input type="range" id="horizonSlider" min="3" max="14" value="7" step="1">
+        <span class="range-value" id="horizonValue">7d</span>
+      </div>
+
+      <div class="toolbar-spacer"></div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="content" id="content">
+
+      <!-- ==================== 1. OVERVIEW VIEW ==================== -->
+      <section class="view" data-view="overview">
+        <!-- Top KPI Grid -->
+        <div class="kpi-grid">
+          <!-- Rooms & Occupancy -->
+          <div class="kpi-card" data-kpi="rooms">
+            <div class="kpi-header">
+              <span class="kpi-label">Monitored Facilities</span>
+              <span class="kpi-subtag" id="kpiOccupancyRate">--% occ</span>
+            </div>
+            <div class="kpi-value"><span id="kpiRooms">—</span> <span class="kpi-unit">rooms</span></div>
+            <div class="kpi-footer">
+              <span>Occupants: <strong id="kpiOccupants">—</strong> / <span id="kpiCapacity">—</span></span>
+            </div>
+          </div>
+
+          <!-- Electricity Today -->
+          <div class="kpi-card accent-volt" data-kpi="elec">
+            <div class="kpi-header">
+              <span class="kpi-label">Electricity Today</span>
+              <span class="kpi-badge" id="elecDeltaBadge">--%</span>
+            </div>
+            <div class="kpi-value"><span id="kpiElec">—</span> <span class="kpi-unit">kWh</span></div>
+            <div class="kpi-spark-wrap"><canvas class="kpi-spark" id="sparkElec"></canvas></div>
+            <div class="kpi-footer">Month: <strong id="kpiElecMonth">—</strong> kWh</div>
+          </div>
+
+          <!-- Water Today -->
+          <div class="kpi-card accent-aqua" data-kpi="water">
+            <div class="kpi-header">
+              <span class="kpi-label">Water Today</span>
+              <span class="kpi-badge" id="waterDeltaBadge">--%</span>
+            </div>
+            <div class="kpi-value"><span id="kpiWater">—</span> <span class="kpi-unit">L</span></div>
+            <div class="kpi-spark-wrap"><canvas class="kpi-spark" id="sparkWater"></canvas></div>
+            <div class="kpi-footer">Month: <strong id="kpiWaterMonth">—</strong> L</div>
+          </div>
+
+          <!-- Wi-Fi Today -->
+          <div class="kpi-card accent-signal" data-kpi="wifi">
+            <div class="kpi-header">
+              <span class="kpi-label">Wi-Fi Today</span>
+              <span class="kpi-badge" id="wifiDeltaBadge">--%</span>
+            </div>
+            <div class="kpi-value"><span id="kpiWifi">—</span> <span class="kpi-unit">GB</span></div>
+            <div class="kpi-spark-wrap"><canvas class="kpi-spark" id="sparkWifi"></canvas></div>
+            <div class="kpi-footer">Month: <strong id="kpiWifiMonth">—</strong> GB</div>
+          </div>
+
+          <!-- Current Monthly Utility Cost -->
+          <div class="kpi-card" data-kpi="cost">
+            <div class="kpi-header">
+              <span class="kpi-label">Current Utility Cost</span>
+              <span class="tag tag-cost">30-Day</span>
+            </div>
+            <div class="kpi-value">₹<span id="kpiMonthCost">—</span></div>
+            <div class="kpi-footer">Today: <strong>₹<span id="kpiTodayCost">—</span></strong></div>
+          </div>
+
+          <!-- Predicted Next Month Cost -->
+          <div class="kpi-card accent-predict" data-kpi="pred-cost">
+            <div class="kpi-header">
+              <span class="kpi-label">Predicted Next Cost</span>
+              <span class="kpi-badge" id="costDeltaBadge">+4.5%</span>
+            </div>
+            <div class="kpi-value">₹<span id="kpiPredictedCost">—</span></div>
+            <div class="kpi-footer">Estimated impact: <strong id="kpiCostDiff">—</strong></div>
+          </div>
+
+          <!-- Active Priority Alerts -->
+          <div class="kpi-card accent-alarm" data-kpi="alerts">
+            <div class="kpi-header">
+              <span class="kpi-label">Active Alerts</span>
+              <span class="tag tag-danger" id="kpiHighRiskRooms">0 high-risk</span>
+            </div>
+            <div class="kpi-value" id="kpiActiveAlerts">0</div>
+            <div class="kpi-footer"><span id="kpiHighPriorityCount">0</span> High / Critical Priority</div>
+          </div>
+
+          <!-- Overall Hostel Efficiency Score -->
+          <div class="kpi-card accent-pulse" data-kpi="eff">
+            <div class="kpi-header">
+              <span class="kpi-label">Hostel Efficiency</span>
+              <span class="tag tag-success" id="kpiEffRating">Good</span>
+            </div>
+            <div class="kpi-value"><span id="kpiEffScore">--</span><span class="kpi-unit">/100</span></div>
+            <div class="kpi-footer">Composite Resource Rating</div>
+          </div>
+
+          <!-- Sustainability / Carbon Score -->
+          <div class="kpi-card accent-green" data-kpi="green">
+            <div class="kpi-header">
+              <span class="kpi-label">Sustainability Score</span>
+              <span class="kpi-badge" id="kpiGreenTrend">Stable</span>
+            </div>
+            <div class="kpi-value"><span id="kpiGreenScore">--</span><span class="kpi-unit">/100</span></div>
+            <div class="kpi-footer">Today: <strong id="kpiCo2Today">--</strong> kg CO₂</div>
+          </div>
+        </div>
+
+        <!-- Overview Two-Column Dashboard Content -->
+      </section>
+
+      <!-- ==================== 2. HOSTEL COMPARISON VIEW ==================== -->
+      <section class="view" data-view="comparison" hidden>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Institution Multi-Hostel Benchmarking</h2>
+              <span class="panel-sub">Side-by-side comparative analysis of electricity, water, Wi-Fi, cost, and efficiency</span>
+            </div>
+          </div>
+
+          <!-- AI Benchmark Insight Box -->
+          <div class="callout callout-insight" id="comparisonInsightBox">
+            <div class="callout-icon">💡</div>
+            <div class="callout-content">
+              <strong>AI Institutional Benchmark Analysis</strong>
+              <p id="comparisonInsightText">Comparing hostel consumption patterns across facilities…</p>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table" id="comparisonTable">
+              <thead>
+                <tr>
+                  <th>Hostel</th>
+                  <th>Type</th>
+                  <th>Rooms</th>
+                  <th>Occupants</th>
+                  <th>Electricity (30d)</th>
+                  <th>Water (30d)</th>
+                  <th>Wi-Fi (30d)</th>
+                  <th>Cost (₹/mo)</th>
+                  <th>Per Student Elec</th>
+                  <th>Efficiency Score</th>
+                  <th>Active Anomalies</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div class="chart-wrap" style="height:320px; margin-top:24px;">
+            <canvas id="chartComparison"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 3. ELECTRICITY VIEW ==================== -->
+      <section class="view" data-view="electricity" hidden>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Electricity Monitoring &amp; Demand</h2>
+              <span class="panel-sub" id="elecRoomLabel">—</span>
+            </div>
+            <div class="segmented" id="elecModeTabs">
+              <button type="button" class="seg-btn active" data-mode="daily">Daily Trend</button>
+              <button type="button" class="seg-btn" data-mode="weekly">1 Week (Timing)</button>
+              <button type="button" class="seg-btn" data-mode="diurnal">24h Academic Routine</button>
+            </div>
+            <div class="stat-pills">
+              <span class="stat-pill" id="elecAvg">avg — kWh/day</span>
+              <span class="stat-pill" id="elecPeak">peak — kWh</span>
+              <span class="stat-pill" id="elecPerStudent">— kWh/student</span>
+              <span class="stat-pill" id="elecEstCost">est ₹—/mo</span>
+            </div>
+          </div>
+
+          <!-- Academic Routine Callout Banner -->
+          <div class="callout callout-insight" id="elecDiurnalInfo" hidden>
+            <div class="callout-icon">🎓</div>
+            <div class="callout-content">
+              <strong>Authentic Academic Timetable Verification (Real-Time Diurnal Pattern)</strong>
+              <p>
+                Notice the deep consumption drop during <strong>08:30–12:30</strong> (Morning Classes) and <strong>13:30–16:30</strong> (Afternoon Labs). Because students are physically in college, hostel rooms sit empty at standby power (~25W vampire draw). Peak loads occur during <strong>06:00–08:30</strong> (morning prep) and <strong>19:30–23:30</strong> (evening study & laptops).
+              </p>
+            </div>
+          </div>
+
+          <div class="chart-wrap"><canvas id="chartElec"></canvas></div>
+        </div>
+      </section>
+
+      <!-- ==================== 4. WATER VIEW ==================== -->
+      <section class="view" data-view="water" hidden>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Water Monitoring &amp; Leakage Detection</h2>
+              <span class="panel-sub" id="waterRoomLabel">—</span>
+            </div>
+            <div class="segmented" id="waterModeTabs">
+              <button type="button" class="seg-btn active" data-mode="daily">Daily Trend</button>
+              <button type="button" class="seg-btn" data-mode="weekly">1 Week (Timing)</button>
+              <button type="button" class="seg-btn" data-mode="diurnal">24h Academic Routine</button>
+            </div>
+            <div class="stat-pills">
+              <span class="stat-pill" id="waterAvg">avg — L/day</span>
+              <span class="stat-pill" id="waterPeak">peak — L</span>
+              <span class="stat-pill" id="waterPerStudent">— L/student</span>
+              <span class="stat-pill" id="waterEstCost">est ₹—/mo</span>
+            </div>
+          </div>
+
+          <!-- Academic Routine Water Callout Banner -->
+          <div class="callout callout-insight" id="waterDiurnalInfo" hidden>
+            <div class="callout-icon">💧</div>
+            <div class="callout-content">
+              <strong>Real-Time Hydrology & Academic Timetable Profile</strong>
+              <p>
+                Peak water draw occurs during the <strong>06:00–08:30 Morning Rush</strong> (bathing, geysers, flushing). During academic hours (<strong>08:30–12:30 & 13:30–16:30</strong>), active water draw drops to <strong>0 Liters</strong>. Any continuous flow during class hours is an automated leak indicator.
+              </p>
+            </div>
+          </div>
+
+          <!-- Leakage Pattern Notice -->
+          <div class="callout callout-warning" id="waterLeakCard">
+            <div class="callout-icon">💧</div>
+            <div class="callout-content">
+              <strong>Smart Meter Continuous Flow Analysis</strong>
+              <p>Detecting continuous nighttime or abnormal draw patterns. Probable causes include pipeline fissures, tap left running, or tank float valve failure.</p>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" id="createWaterTicketQuickBtn">Open Work Order</button>
+          </div>
+
+          <div class="chart-wrap"><canvas id="chartWater"></canvas></div>
+        </div>
+      </section>
+
+      <!-- ==================== 5. WI-FI VIEW ==================== -->
+      <section class="view" data-view="wifi" hidden>
+        <div class="panel-row">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>WiFi Data Usage</h2>
+              <div class="segmented" id="wifiModeTabs">
+                <button type="button" class="seg-btn active" data-mode="daily">Daily Trend</button>
+                <button type="button" class="seg-btn" data-mode="weekly">1 Week (Timing)</button>
+                <button type="button" class="seg-btn" data-mode="diurnal">24h Academic Routine</button>
+              </div>
+              <span class="stat-pill" id="wifiAvg">avg — GB/day</span>
+            </div>
+
+            <!-- Academic Routine Wi-Fi Callout Banner -->
+            <div class="callout callout-insight" id="wifiDiurnalInfo" hidden>
+              <div class="callout-icon">📶</div>
+              <div class="callout-content">
+                <strong>Academic Bandwidth Allocation</strong>
+                <p>
+                  Wi-Fi bandwidth drops to near-zero background sync while students attend campus classes. Peak bandwidth demand occurs between <strong>19:30–23:30</strong> when resident students engage in online assignments, coding, and video streaming.
+                </p>
+              </div>
+            </div>
+
+            <div class="chart-wrap"><canvas id="chartWifi"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Connected Devices</h2>
+              <span class="stat-pill" id="wifiDevAvg">avg —</span>
+            </div>
+            <div class="chart-wrap"><canvas id="chartWifiDevices"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 6. PREDICTIONS & OCCUPANCY ==================== -->
+      <section class="view" data-view="predictions" hidden>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>AI Predictive Demand &amp; Occupancy Forecast</h2>
+              <span class="panel-sub">Random Forest Regressors driven by Occupancy Forecast → Resource Forecast → Cost Impact</span>
+            </div>
+          </div>
+
+          <div class="segmented" id="predictResourceTabs">
+            <button class="seg-btn active" data-resource="electricity">Electricity</button>
+            <button class="seg-btn" data-resource="water">Water</button>
+            <button class="seg-btn" data-resource="wifi">WiFi</button>
+            <button class="seg-btn" data-resource="occupancy">Occupancy Forecast</button>
+          </div>
+
+          <div class="chart-wrap"><canvas id="chartPredict"></canvas></div>
+
+          <!-- XAI Attribution Card -->
+          <div class="xai-card" id="xaiPredictionCard">
+            <div class="xai-header">
+              <span class="xai-title">Explainable AI (XAI) Feature Attribution</span>
+              <span class="badge" id="xaiTrendBadge">Trend: UP (+8.2%)</span>
+            </div>
+            <p id="xaiExplanationText" class="xai-text">Loading model explanation…</p>
+            <div class="xai-factors-grid" id="xaiFactorsGrid"></div>
+          </div>
+
+          <h3 class="subhead" style="margin-top:24px;">Forecast Schedule</h3>
+          <table class="data-table" id="predictTable">
+            <thead>
+              <tr><th>Date</th><th>Forecasted Demand</th><th>Predicted Occupancy</th><th>Variance Status</th><th>Typical Peak Hour</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ==================== 7. ANOMALIES & XAI VIEW ==================== -->
+      <section class="view" data-view="alerts" hidden>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Isolation Forest Anomaly Detection &amp; Explainability</h2>
+              <span class="panel-sub">Unsupervised outlier detection flagging leaks, appliances left on, and bandwidth abuse</span>
+            </div>
+            <button class="btn btn-primary btn-sm" id="runScanBtn">Run Anomaly Scan Now</button>
+          </div>
+
+          <div class="segmented" id="alertResourceTabs">
+            <button class="seg-btn active" data-resource="electricity">Electricity</button>
+            <button class="seg-btn" data-resource="water">Water</button>
+            <button class="seg-btn" data-resource="wifi">WiFi</button>
+          </div>
+
+          <div id="scanResult" class="scan-result-banner"></div>
+
+          <h3 class="subhead">Detected Abnormalities &amp; Explanations</h3>
+          <div id="detailedAnomaliesList" class="anomaly-cards-grid"></div>
+
+          <h3 class="subhead" style="margin-top:28px;">Anomaly Log History</h3>
+          <div class="table-responsive">
+            <table class="data-table" id="alertsTable">
+              <thead>
+                <tr>
+                  <th>Room</th>
+                  <th>Date</th>
+                  <th>Message</th>
+                  <th>Severity</th>
+                  <th>Probable Causes</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 8. WHAT-IF OPTIMIZATION SIMULATOR ==================== -->
+      <section class="view" data-view="simulator" hidden>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>What-If Optimization Simulator</h2>
+              <span class="panel-sub">Simulate institutional parameter changes (occupancy load, conservation targets) and forecast financial savings and emissions avoided</span>
+            </div>
+          </div>
+
+          <div class="simulator-layout">
+            <!-- Left: Controls -->
+            <div class="sim-controls-card">
+              <h3 class="sim-card-title">Simulation Parameters</h3>
+
+              <div class="sim-control-group">
+                <div class="sim-label-row">
+                  <label>Simulated Occupancy</label>
+                  <span class="sim-val" id="simOccDisplay">--</span>
+                </div>
+                <input type="range" id="simOccSlider" min="10" max="600" value="100" step="1">
+                <span class="sim-hint">Simulate student admissions or vacation periods</span>
+              </div>
+
+              <div class="sim-control-group">
+                <div class="sim-label-row">
+                  <label>Electricity Reduction Target</label>
+                  <span class="sim-val" id="simElecDisplay">10%</span>
+                </div>
+                <input type="range" id="simElecSlider" min="0" max="35" value="10" step="1">
+                <span class="sim-hint">e.g. Smart master cutoffs, LED retrofits, HVAC timers</span>
+              </div>
+
+              <div class="sim-control-group">
+                <div class="sim-label-row">
+                  <label>Water Conservation Target</label>
+                  <span class="sim-val" id="simWaterDisplay">8%</span>
+                </div>
+                <input type="range" id="simWaterSlider" min="0" max="35" value="8" step="1">
+                <span class="sim-hint">e.g. Fixing cistern leaks, aerator nozzles, tank float valves</span>
+              </div>
+
+              <div class="sim-control-group">
+                <div class="sim-label-row">
+                  <label>Wi-Fi Optimization Target</label>
+                  <span class="sim-val" id="simWifiDisplay">5%</span>
+                </div>
+                <input type="range" id="simWifiSlider" min="0" max="35" value="5" step="1">
+                <span class="sim-hint">e.g. QoS bandwidth throttling during study hours</span>
+              </div>
+
+              <button type="button" class="btn btn-primary btn-block" id="applySimBtn">Calculate Optimized Scenario</button>
+            </div>
+
+            <!-- Right: Results Impact -->
+            <div class="sim-results-card">
+              <h3 class="sim-card-title">Projected Institutional Impact</h3>
+
+              <div class="sim-impact-grid">
+                <div class="impact-tile">
+                  <span class="impact-label">Estimated Monthly Savings</span>
+                  <div class="impact-val" id="simMonthlySavingsWrap">₹<span id="simMonthlySavings">0</span></div>
+                </div>
+
+                <div class="impact-tile">
+                  <span class="impact-label">Estimated Annual Savings</span>
+                  <div class="impact-val" id="simAnnualSavingsWrap">₹<span id="simAnnualSavings">0</span></div>
+                </div>
+
+                <div class="impact-tile">
+                  <span class="impact-label">Avoided CO₂ Emissions</span>
+                  <div class="impact-val" id="simCo2AvoidedWrap"><span id="simCo2Avoided">0</span> kg/mo</div>
+                </div>
+
+                <div class="impact-tile">
+                  <span class="impact-label">Bill Reduction</span>
+                  <div class="impact-val" id="simBillReductionWrap"><span id="simCostDeltaPct">0</span>%</div>
+                </div>
+              </div>
+
+              <!-- Comparison Table -->
+              <table class="data-table sim-table" style="margin-top:20px;">
+                <thead>
+                  <tr><th>Metric</th><th>Current Baseline</th><th>Simulated Optimized</th><th>Variance</th></tr>
+                </thead>
+                <tbody id="simComparisonTableBody"></tbody>
+              </table>
+
+              <div class="chart-wrap" style="height:220px; margin-top:20px;">
+                <canvas id="chartSimulator"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 9. MAINTENANCE WORKFLOW VIEW ==================== -->
+      <section class="view" data-view="maintenance" hidden>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Closed-Loop Maintenance Workflow</h2>
+              <span class="panel-sub">Detect → Create Ticket → Assign Staff → In Progress → Resolved</span>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" id="openNewTicketModalBtn">+ New Work Order</button>
+          </div>
+
+          <div class="segmented" id="maintenanceStatusTabs">
+            <button class="seg-btn active" data-status="">All Tickets</button>
+            <button class="seg-btn" data-status="OPEN">Open</button>
+            <button class="seg-btn" data-status="IN_PROGRESS">In Progress</button>
+            <button class="seg-btn" data-status="RESOLVED">Resolved</button>
+          </div>
+
+          <div class="table-responsive" style="margin-top:16px;">
+            <table class="data-table" id="maintenanceTable">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Hostel</th>
+                  <th>Room</th>
+                  <th>Resource</th>
+                  <th>Problem Summary</th>
+                  <th>Severity</th>
+                  <th>Assigned Staff</th>
+                  <th>Status</th>
+                  <th>Logged Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 10. REPORTS & EXPORT VIEW ==================== -->
+      <section class="view" data-view="reports" hidden>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Executive Operational Reports</h2>
+              <span class="panel-sub">Institution-ready utility audits for committee reviews and management</span>
+            </div>
+            <div class="panel-actions">
+              <button type="button" class="btn btn-secondary btn-sm" id="printReportBtn">🖨️ Print / Save PDF</button>
+            </div>
+          </div>
+
+          <div class="segmented" id="reportPeriodTabs">
+            <button class="seg-btn" data-period="daily">Daily Report</button>
+            <button class="seg-btn" data-period="weekly">Weekly Report</button>
+            <button class="seg-btn active" data-period="monthly">Monthly Audit</button>
+          </div>
+
+          <!-- Printable Report Card -->
+          <div class="report-paper" id="reportPaper">
+            <div class="report-header">
+              <div>
+                <h1 class="report-title">HOSTEL UTILITY OPTIMIZATION AUDIT</h1>
+                <div class="report-meta" id="reportMetaText">Generated on --</div>
+              </div>
+              <div class="report-badge">OFFICIAL AUDIT</div>
+            </div>
+
+            <div class="report-section-title">1. Operational Summary</div>
+            <div class="report-stats-grid" id="reportStatsGrid"></div>
+
+            <div class="report-section-title">2. Financial Breakdown</div>
+            <div class="report-stats-grid" id="reportFinancialsGrid"></div>
+
+            <div class="report-section-title">3. Carbon &amp; Sustainability Accounting</div>
+            <div class="report-stats-grid">
+              <div class="report-stat-box"><div class="report-stat-lbl">Sustainability Score</div><div class="report-stat-num"><span id="sustScore">--</span>/100</div></div>
+              <div class="report-stat-box"><div class="report-stat-lbl">30-Day CO₂ Footprint</div><div class="report-stat-num"><span id="sustMonthCo2">--</span> kg</div></div>
+              <div class="report-stat-box"><div class="report-stat-lbl">Annual Projected Emissions</div><div class="report-stat-num"><span id="sustAnnualCo2">--</span> tons</div></div>
+              <div class="report-stat-box"><div class="report-stat-lbl">Tree Offset Equivalent</div><div class="report-stat-num"><span id="sustTrees">--</span> trees</div></div>
+            </div>
+            <p class="report-sust-note">Central Electricity Authority (CEA) standard: 0.82 kg CO₂/kWh grid emission factor. Installing an estimated 45 kW rooftop solar PV system could offset ~<span id="sustSolarKwh">--</span> kWh/month, cutting institutional emissions by approximately 35%.</p>
+
+            <div class="report-section-title">4. AI Recommendations &amp; Corrective Measures</div>
+            <div class="report-list" id="reportRecsList"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 12. ROOM EFFICIENCY (ADMIN/WARDEN) ==================== -->
+      <section class="view" data-view="efficiency" hidden>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Room Efficiency Ranking &amp; Categorization</h2>
+              <span class="panel-sub">Ranked consumption per occupant — categorized from Most Efficient (Grade A) to Critical (Grade F)</span>
+            </div>
+            <span class="tag tag-admin">Admin &amp; Warden</span>
+          </div>
+
+          <div class="segmented" id="effResourceTabs">
+            <button class="seg-btn active" data-resource="electricity">Electricity</button>
+            <button class="seg-btn" data-resource="water">Water</button>
+            <button class="seg-btn" data-resource="wifi">WiFi</button>
+          </div>
+
+          <div class="chart-wrap"><canvas id="chartEfficiency"></canvas></div>
+
+          <h3 class="subhead" style="margin-top:24px;">Detailed Room Efficiency Categorization</h3>
+          <div class="table-responsive">
+            <table class="data-table" id="efficiencyDetailedTable">
+              <thead>
+                <tr>
+                  <th>Room</th>
+                  <th>Per Occupant Usage</th>
+                  <th>Efficiency Score</th>
+                  <th>Category Grade</th>
+                  <th>Audit Diagnosis</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 13. ADMIN PANEL ==================== -->
+      <section class="view" data-view="admin" hidden>
+        <!-- Hostels Management -->
+        <div class="panel-row">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Hostels</h2>
+              <span class="tag tag-admin">admin only</span>
+            </div>
+            <table class="data-table" id="hostelsTable">
+              <thead><tr><th>Name</th><th>Type</th><th>Rooms</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h2>Add Hostel</h2></div>
+            <form id="createHostelForm" class="stack-form">
+              <label class="field">
+                <span class="field-label">Hostel name</span>
+                <input type="text" id="newHostelName" placeholder="e.g. Girls Hostel Ganga" required>
+              </label>
+              <label class="field">
+                <span class="field-label">Type</span>
+                <select id="newHostelType" class="select">
+                  <option value="girls">Girls Hostel</option>
+                  <option value="boys">Boys Hostel</option>
+                  <option value="co-ed">Co-ed Hostel</option>
+                </select>
+              </label>
+              <div id="createHostelMsg"></div>
+              <button type="submit" class="btn btn-primary">Add Hostel</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- User Accounts Management -->
+        <div class="panel-row">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Pending Warden Requests</h2>
+              <span class="tag tag-admin">admin only</span>
+            </div>
+            <table class="data-table" id="pendingWardensTable">
+              <thead><tr><th>Email</th><th>Hostel</th><th>Floor</th><th>Requested</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+            <div id="pendingWardensEmpty" class="panel-sub" style="padding:12px 0 0;" hidden>No pending requests.</div>
+          </div>
+        </div>
+
+        <div class="panel-row">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>User Accounts</h2>
+              <span class="tag tag-admin">admin only</span>
+            </div>
+            <table class="data-table" id="usersTable">
+              <thead><tr><th>Username</th><th>Role</th><th>Hostel</th><th>Created</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h2>Create Warden Login</h2></div>
+            <form id="createWardenForm" class="stack-form">
+              <label class="field">
+                <span class="field-label">Hostel</span>
+                <select id="wardenHostel" class="select"></select>
+              </label>
+              <label class="field">
+                <span class="field-label">Floor</span>
+                <select id="wardenFloor" class="select">
+                  <option value="">All Floors (whole hostel)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Email</span>
+                <input type="email" id="wardenEmail" required>
+              </label>
+              <label class="field">
+                <span class="field-label">Password</span>
+                <input type="password" id="wardenPassword" minlength="6" required>
+              </label>
+              <div id="createWardenMsg"></div>
+              <button type="submit" class="btn btn-primary">Create Warden Login</button>
+            </form>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Warden's own profile -->
+      <section class="view" data-view="profile" hidden>
+        <div class="panel-row">
+          <div class="panel">
+            <div class="profile-card-head">
+              <div class="profile-avatar" id="profileAvatar">W</div>
+              <div>
+                <div class="profile-name" id="profileEmail">—</div>
+                <span class="tag tag-staff" id="profileRole">warden</span>
+              </div>
+            </div>
+
+            <div class="profile-grid">
+              <div class="profile-info-item">
+                <span class="profile-info-label">College</span>
+                <span class="profile-info-value" id="profileCollege">—</span>
+              </div>
+              <div class="profile-info-item">
+                <span class="profile-info-label">Hostel</span>
+                <span class="profile-info-value" id="profileHostel">—</span>
+              </div>
+              <div class="profile-info-item">
+                <span class="profile-info-label">Floor</span>
+                <span class="profile-info-value" id="profileFloor">—</span>
+              </div>
+              <div class="profile-info-item">
+                <span class="profile-info-label">Account created</span>
+                <span class="profile-info-value" id="profileCreated">—</span>
+              </div>
+            </div>
+
+            <div class="panel-sub" style="padding:16px 0 0;">
+              You have read-only access to your assigned hostel and floor. To change your hostel or
+              floor assignment, contact your college admin.
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h2>Change Password</h2></div>
+            <form id="changePasswordForm" class="stack-form">
+              <label class="field">
+                <span class="field-label">Current password</span>
+                <input type="password" id="currentPassword" autocomplete="current-password" required>
+              </label>
+              <label class="field">
+                <span class="field-label">New password</span>
+                <input type="password" id="newPassword" autocomplete="new-password" minlength="6" required>
+              </label>
+              <label class="field">
+                <span class="field-label">Confirm new password</span>
+                <input type="password" id="confirmNewPassword" autocomplete="new-password" minlength="6" required>
+              </label>
+              <div id="changePasswordMsg"></div>
+              <button type="submit" class="btn btn-primary" id="changePasswordBtn">Update Password</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ==================== AI ASSISTANT CHATBOT DRAWER ==================== -->
+<div id="chatbotDrawer" class="chatbot-drawer" hidden>
+  <div class="chatbot-header">
+    <div class="chatbot-title-box">
+      <div class="brand-mark small">AI</div>
+      <div>
+        <div class="chatbot-title">Hostel Resource AI Assistant</div>
+        <div class="chatbot-subtitle">Connected to live institutional analytics</div>
+      </div>
+    </div>
+    <button type="button" class="icon-btn" id="closeChatbotBtn" title="Close">✕</button>
+  </div>
+
+  <!-- Prompt Quick Chips -->
+  <div class="chatbot-chips" id="chatbotChips">
+    <button type="button" class="chip-btn" data-query="Which hostel has the highest electricity consumption?">Highest electricity?</button>
+    <button type="button" class="chip-btn" data-query="Which room is high risk?">High risk rooms?</button>
+    <button type="button" class="chip-btn" data-query="What should we do?">Top recommendations?</button>
+    <button type="button" class="chip-btn" data-query="What is the expected cost next month?">Next month cost?</button>
+    <button type="button" class="chip-btn" data-query="Which hostel is most efficient?">Most efficient hostel?</button>
+    <button type="button" class="chip-btn" data-query="How much can we save by reducing electricity by 10%?">10% reduction saving?</button>
+  </div>
+
+  <!-- Message Stream -->
+  <div class="chatbot-messages" id="chatbotMessages">
+    <div class="chat-msg bot">
+      Hello! I am your Hostel Resource AI Assistant. I have live access to your institutional database, meter readings, anomaly detectors, and financial models. How can I assist you today?
+    </div>
+  </div>
+
+  <!-- Input Form -->
+  <form id="chatbotForm" class="chatbot-form">
+    <input type="text" id="chatbotInput" placeholder="Ask about electricity, water, anomalies, costs..." autocomplete="off" required>
+    <button type="submit" class="btn btn-primary btn-sm" id="chatbotSendBtn">Send</button>
+  </form>
+</div>
+
+<!-- ==================== WORK ORDER CREATION MODAL ==================== -->
+<div id="ticketModal" class="modal-backdrop" hidden>
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3>Create Maintenance Work Order</h3>
+      <button type="button" class="modal-close" id="closeTicketModalBtn">✕</button>
+    </div>
+    <form id="ticketForm" class="modal-body stack-form">
+      <label class="field">
+        <span class="field-label">Hostel</span>
+        <select id="modalHostelSelect" class="select" required></select>
+      </label>
+      <label class="field">
+        <span class="field-label">Room</span>
+        <select id="modalRoomSelect" class="select" required></select>
+      </label>
+      <label class="field">
+        <span class="field-label">Resource Type</span>
+        <select id="modalResourceSelect" class="select">
+          <option value="water">Water / Plumbing</option>
+          <option value="electricity">Electricity / Electrical</option>
+          <option value="wifi">Wi-Fi / Network</option>
+          <option value="other">General Facilities</option>
+        </select>
+      </label>
+      <label class="field">
+        <span class="field-label">Problem Summary</span>
+        <input type="text" id="modalProblemInput" placeholder="e.g. Severe faucet leakage under basin" required>
+      </label>
+      <label class="field">
+        <span class="field-label">Priority Severity</span>
+        <select id="modalSeveritySelect" class="select">
+          <option value="low">LOW</option>
+          <option value="medium" selected>MEDIUM</option>
+          <option value="high">HIGH</option>
+          <option value="critical">CRITICAL</option>
+        </select>
+      </label>
+      <label class="field">
+        <span class="field-label">Detailed Description / Instructions</span>
+        <textarea id="modalDescInput" class="textarea" rows="3" placeholder="Provide details for the maintenance technician..."></textarea>
+      </label>
+      <div id="ticketMsg"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="cancelTicketModalBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create Work Order</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ==================== WORK ORDER RESOLUTION / STATUS MODAL ==================== -->
+<div id="updateTicketModal" class="modal-backdrop" hidden>
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3>Update Work Order #<span id="updateTicketIdDisplay">--</span></h3>
+      <button type="button" class="modal-close" id="closeUpdateModalBtn">✕</button>
+    </div>
+    <form id="updateTicketForm" class="modal-body stack-form">
+      <div id="updateTicketDetails" style="font-size:13px; color:var(--mist); margin-bottom:12px;"></div>
+      <label class="field">
+        <span class="field-label">Update Status</span>
+        <select id="updateStatusSelect" class="select">
+          <option value="OPEN">OPEN</option>
+          <option value="IN_PROGRESS">IN PROGRESS</option>
+          <option value="RESOLVED">RESOLVED</option>
+          <option value="CLOSED">CLOSED</option>
+        </select>
+      </label>
+      <label class="field">
+        <span class="field-label">Technician Resolution Notes</span>
+        <textarea id="updateNotesInput" class="textarea" rows="3" placeholder="Describe corrective measures taken (e.g. Replaced faulty cistern gasket and tested flow)"></textarea>
+      </label>
+      <div id="updateTicketMsg"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="cancelUpdateModalBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="app.js?v=1"></script>
+</body>
+</html>

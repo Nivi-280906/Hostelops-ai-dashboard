@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HostelOps — Every meter, read.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #FEFEFE;
+    --paper-deep: #E7E9F0;
+    --card: #F4F5FA;
+    --ink: #051747;
+    --ink-soft: #535F80;
+    --accent: #081F62;
+    --line: rgba(5,23,71,0.12);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  a { text-decoration: none; }
+  img { display: block; max-width: 100%; }
+
+  nav {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 30px 56px;
+  }
+  .mark { font-family: 'Fraunces', serif; font-weight: 600; font-size: 20px; color: #FEFEFE; }
+  .mark span { color: rgba(254,254,254,0.65); font-family: 'Inter'; font-weight: 600; font-size: 10.5px; margin-left: 6px; }
+  .nav-links { display: flex; align-items: center; gap: 32px; }
+  .nav-links a { color: rgba(254,254,254,0.85); font-size: 13.5px; font-weight: 500; }
+  .nav-cta {
+    background: #FEFEFE; color: var(--ink);
+    font-weight: 700; font-size: 13px;
+    padding: 10px 22px; border-radius: 8px;
+  }
+  .nav-right { display: flex; align-items: center; gap: 18px; }
+  .nav-signin { color: rgba(254,254,254,0.9); font-size: 13.5px; font-weight: 600; }
+
+  .hero {
+    position: relative;
+    min-height: 92vh;
+    display: flex; align-items: flex-end;
+    overflow: hidden;
+  }
+  .hero img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .hero::after {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(180deg, rgba(5,23,71,0.55) 0%, rgba(5,23,71,0.35) 30%, rgba(5,23,71,0.85) 100%);
+  }
+  .hero-content {
+    position: relative; z-index: 2;
+    width: 100%;
+    max-width: 1220px; margin: 0 auto;
+    padding: 0 56px 72px;
+    display: grid; grid-template-columns: 1.3fr 1fr; gap: 50px; align-items: end;
+  }
+  .hero-content h1 {
+    font-family: 'Fraunces', serif; font-weight: 600;
+    font-size: 54px; line-height: 1.08; letter-spacing: -1px;
+    color: #FEFEFE; margin: 0 0 18px; max-width: 11em;
+  }
+  .hero-content .lede {
+    color: rgba(254,254,254,0.82); font-size: 16px; line-height: 1.65;
+    max-width: 30em; margin: 0 0 28px;
+  }
+  .cta-row { display: flex; gap: 14px; }
+  .btn-solid {
+    background: #FEFEFE; color: var(--ink); font-weight: 700; font-size: 14px;
+    padding: 14px 26px; border-radius: 8px;
+  }
+  .btn-line {
+    border: 1px solid rgba(254,254,254,0.4); color: #FEFEFE; font-weight: 600; font-size: 14px;
+    padding: 13px 24px; border-radius: 8px;
+  }
+  .hero-stats {
+    display: flex; flex-direction: column; gap: 18px;
+    border-left: 1px solid rgba(254,254,254,0.25);
+    padding-left: 30px;
+  }
+  .hero-stats div b { display: block; font-family: 'Fraunces', serif; font-size: 26px; color: #FEFEFE; font-weight: 600; }
+  .hero-stats div span { color: rgba(254,254,254,0.7); font-size: 12px; }
+
+  .strip {
+    display: grid; grid-template-columns: repeat(3,1fr); gap: 20px;
+    max-width: 1220px; margin: -56px auto 90px; padding: 0 56px;
+    position: relative; z-index: 3;
+  }
+  .strip-card {
+    background: #FEFEFE; border-radius: 16px; padding: 28px 26px;
+    box-shadow: 0 18px 40px -14px rgba(5,23,71,0.22);
+    border: 1px solid var(--line);
+  }
+  .strip-card .ico {
+    width: 42px; height: 42px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px;
+    background: var(--card);
+  }
+  .strip-card h3 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 17px; margin: 0 0 8px; }
+  .strip-card p { color: var(--ink-soft); font-size: 13px; line-height: 1.6; margin: 0; }
+
+  .split {
+    max-width: 1220px; margin: 0 auto 100px; padding: 0 56px;
+    display: grid; grid-template-columns: 0.95fr 1.05fr; gap: 60px; align-items: center;
+  }
+  .split-photo { position: relative; border-radius: 20px; overflow: hidden; aspect-ratio: 3/4; }
+  .split-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .split-tag {
+    position: absolute; left: 18px; top: 18px;
+    background: rgba(5,23,71,0.75); color: #FEFEFE;
+    font-size: 11.5px; font-weight: 600;
+    padding: 7px 13px; border-radius: 7px;
+  }
+  .split-copy .kicker { color: var(--accent); font-weight: 700; font-size: 12.5px; letter-spacing: 0.3px; margin: 0 0 10px; }
+  .split-copy h2 {
+    font-family: 'Fraunces', serif; font-weight: 600; font-size: 32px;
+    letter-spacing: -0.5px; margin: 0 0 16px; line-height: 1.15;
+  }
+  .split-copy > p { color: var(--ink-soft); font-size: 14.5px; line-height: 1.65; margin: 0 0 26px; max-width: 30em; }
+  .checklist { display: flex; flex-direction: column; gap: 16px; padding: 0; margin: 0; }
+  .checklist li {
+    list-style: none; display: flex; gap: 12px; align-items: flex-start;
+  }
+  .checklist .num {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--accent); color: #FEFEFE; font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .checklist div b { display: block; font-size: 14px; margin-bottom: 2px; }
+  .checklist div span { color: var(--ink-soft); font-size: 13px; line-height: 1.5; }
+
+  .flow { max-width: 1220px; margin: 0 auto 100px; padding: 0 56px; }
+  .flow-head { max-width: 34em; margin-bottom: 40px; }
+  .flow-head .kicker { color: var(--accent); font-weight: 700; font-size: 12.5px; margin: 0 0 10px; }
+  .flow-head h2 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 32px; margin: 0 0 12px; letter-spacing: -0.5px; }
+  .flow-head p { color: var(--ink-soft); font-size: 14.5px; line-height: 1.6; margin: 0; }
+  .flow-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .flow-item {
+    background: var(--card); border-radius: 16px; padding: 26px 22px;
+  }
+  .flow-item .who {
+    display: inline-block; color: #FEFEFE; background: var(--accent);
+    font-weight: 700; font-size: 11px; padding: 4px 10px; border-radius: 6px; margin-bottom: 14px;
+  }
+  .flow-item h4 { font-size: 15px; margin: 0 0 8px; }
+  .flow-item p { color: var(--ink-soft); font-size: 13px; line-height: 1.55; margin: 0; }
+
+  .final { max-width: 1220px; margin: 0 auto 80px; padding: 0 56px; }
+  .final-inner {
+    position: relative;
+    border-radius: 24px; overflow: hidden;
+    min-height: 260px;
+    display: flex; align-items: center;
+    padding: 50px 56px;
+    background:
+      radial-gradient(circle at 85% 20%, rgba(254,254,254,0.10), transparent 55%),
+      linear-gradient(120deg, var(--ink) 0%, var(--accent) 100%);
+  }
+  .final-copy { position: relative; z-index: 2; max-width: 26em; }
+  .final-copy h2 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 30px; color: #FEFEFE; margin: 0 0 12px; letter-spacing: -0.5px; }
+  .final-copy p { color: rgba(254,254,254,0.8); font-size: 14.5px; margin: 0 0 26px; line-height: 1.6; }
+  .final-copy a {
+    background: #FEFEFE; color: var(--ink); font-weight: 700; font-size: 14px;
+    padding: 14px 26px; border-radius: 8px; display: inline-block;
+  }
+
+  footer {
+    max-width: 1220px; margin: 0 auto; padding: 0 56px 40px;
+    display: flex; justify-content: space-between;
+    color: var(--ink-soft); font-size: 12px;
+  }
+
+  @media (max-width: 900px) {
+    .hero-content { grid-template-columns: 1fr; }
+    .hero-stats { flex-direction: row; border-left: none; border-top: 1px solid rgba(254,254,254,0.25); padding-left: 0; padding-top: 18px; gap: 30px; }
+    .strip { grid-template-columns: 1fr; margin-top: 30px; }
+    .split { grid-template-columns: 1fr; }
+    .flow-grid { grid-template-columns: 1fr 1fr; }
+    .final-inner { flex-direction: column; }
+    nav { padding: 20px 24px; position: relative; background: var(--ink); }
+    .nav-links { display: none; }
+    .hero-content, .strip, .split, .flow, .final, footer { padding-left: 24px; padding-right: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="mark">HostelOps <span>UTILITY REGISTRY</span></div>
+  <div class="nav-links">
+    <a href="#utilities">Utilities</a>
+    <a href="#workflow">How it works</a>
+  </div>
+  <div class="nav-right">
+    <a class="nav-signin" href="/dashboard">Sign in</a>
+    <a class="nav-cta" href="/dashboard">Get started</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <img src="assets/hostel-checkin.png" alt="Students checking in to a hostel room">
+  <div class="hero-content">
+    <div>
+      <h1>Every meter, read. Every floor, accounted for.</h1>
+      <p class="lede">HostelOps tracks electricity, water and Wi-Fi across every room and floor, catches anomalies before they become complaints, and gives wardens one place to act — instead of a group chat and a guess.</p>
+      <div class="cta-row">
+        <a class="btn-solid" href="/dashboard">Create an account</a>
+        <a class="btn-line" href="#workflow">See how it works</a>
+      </div>
+    </div>
+    <div class="hero-stats">
+      <div><b>3</b><span>utilities tracked live</span></div>
+      <div><b>AI</b><span>forecasts &amp; anomalies</span></div>
+      <div><b>Floor</b><span>level access control</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="strip" id="utilities">
+  <div class="strip-card">
+    <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="#B8752F"><polygon points="13,2 3,14 11,14 9,22 21,9 13,9"/></svg></div>
+    <h3>Electricity</h3>
+    <p>Per-room usage read against the academic timetable, so a 2am spike registers as a spike, not noise.</p>
+  </div>
+  <div class="strip-card">
+    <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="#081F62"><path d="M12 2s7 8.5 7 13a7 7 0 0 1-14 0c0-4.5 7-13 7-13z"/></svg></div>
+    <h3>Water</h3>
+    <p>Leak patterns caught from consumption trends — before a running tap becomes a surprise bill.</p>
+  </div>
+  <div class="strip-card">
+    <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B5E9E" stroke-width="2"><path d="M5 12a11 11 0 0 1 14 0M8.5 15.5a6.5 6.5 0 0 1 7 0M12 19v.01" stroke-linecap="round"/></svg></div>
+    <h3>Wi-Fi</h3>
+    <p>Bandwidth and congestion by floor, with forecasts for when an upgrade actually pays off.</p>
+  </div>
+</section>
+
+<section class="split">
+  <div class="split-photo">
+    <img src="assets/hostel-highfive.png" alt="Students greeting each other in a hostel dorm">
+    <span class="split-tag">On the ground</span>
+  </div>
+  <div class="split-copy">
+    <p class="kicker">Why it exists</p>
+    <h2>Built for the warden who finds out about problems last.</h2>
+    <p>Most hostels run on WhatsApp groups and gut feeling. HostelOps replaces the guesswork with live data — so the warden on the ground knows about a leak, a spike, or a Wi-Fi dead zone before a resident has to complain about it.</p>
+    <ul class="checklist">
+      <li><span class="num">1</span><div><b>See it live</b><span>Room and floor-level readings for electricity, water and Wi-Fi, updated continuously.</span></div></li>
+      <li><span class="num">2</span><div><b>Know before it's a complaint</b><span>AI forecasts and anomaly alerts flag issues while they're still small.</span></div></li>
+      <li><span class="num">3</span><div><b>Act from one place</b><span>Log and track maintenance requests without leaving the dashboard.</span></div></li>
+    </ul>
+  </div>
+</section>
+
+<section class="flow" id="workflow">
+  <div class="flow-head">
+    <p class="kicker">How access works</p>
+    <h2>Built around how a hostel is actually run</h2>
+    <p>One admin account per college. One warden account per hostel floor. Nobody sees more than their job needs.</p>
+  </div>
+  <div class="flow-grid">
+    <div class="flow-item">
+      <span class="who">Admin</span>
+      <h4>Add hostels, once</h4>
+      <p>Register each hostel by name and type — boys, girls or co-ed — and rooms and floors are set up underneath it automatically.</p>
+    </div>
+    <div class="flow-item">
+      <span class="who">Warden</span>
+      <h4>Request a floor</h4>
+      <p>Sign up with your college, pick your hostel and floor, and you're scoped to exactly that.</p>
+    </div>
+    <div class="flow-item">
+      <span class="who">Approval</span>
+      <h4>Admin confirms who's real</h4>
+      <p>Every warden request sits pending until the college admin approves it.</p>
+    </div>
+    <div class="flow-item">
+      <span class="who">Everyday</span>
+      <h4>One dashboard, daily</h4>
+      <p>Live readings, forecasts, alerts and maintenance requests in one place.</p>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="final-inner">
+    <div class="final-copy">
+      <h2>Set up your college in a few minutes</h2>
+      <p>Create an admin account, add your hostels, and invite your wardens.</p>
+      <a href="/dashboard">Create your account</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>© 2026 HostelOps</span>
+  <span>AI Resource Optimization Platform</span>
+</footer>
+
+</body>
+</html>
