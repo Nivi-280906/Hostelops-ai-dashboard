@@ -142,9 +142,18 @@ def sync_signup(id_token, college_name, hostel_name=None, hostel_type=None):
 def sync_login(id_token):
     """Called right after the frontend does firebase.auth()
     .signInWithEmailAndPassword(). Verifies the token and looks up the
-    matching local app-level row. If this Firebase identity has never been
-    seen before (e.g. it was created straight from the Firebase console),
-    auto-provisions a fresh college admin row for it, same as signup."""
+    matching local app-level row.
+
+    Deliberately does NOT auto-create an account here. Local development and
+    a deployed environment (e.g. Render) use separate databases but the same
+    Firebase project, so a Firebase login created in one environment still
+    verifies successfully in the other - auto-provisioning a brand-new admin
+    for any such "orphaned" Firebase identity silently handed out full admin
+    access to whoever happened to sign in first, which is how a warden's
+    login on a fresh deployment could end up as an unrelated phantom admin.
+    Account creation only happens through the explicit /api/signup and
+    /api/warden-signup flows now.
+    """
     decoded = verify_id_token(id_token)
     if not decoded:
         return {"error": "Invalid or expired sign-in. Please log in again."}
@@ -154,19 +163,10 @@ def sync_login(id_token):
         return {"error": "Your Firebase account has no email on it."}
 
     user = db.get_user_by_email(email)
-    if user:
-        if user["status"] == "PENDING":
-            return {"error": "Your warden account is still awaiting approval from your college admin."}
-        return _session_payload(user)
-
-    user_id = db.insert_user(
-        username=email,
-        password_hash=_NO_LOCAL_PASSWORD,
-        role="admin",
-        email=email,
-        college_name=_derive_college_name(email),
-    )
-    user = db.fetch_one("SELECT * FROM users WHERE user_id = ?", (user_id,))
+    if not user:
+        return {"error": "No account found for this email in this environment. Please sign up first."}
+    if user["status"] == "PENDING":
+        return {"error": "Your warden account is still awaiting approval from your college admin."}
     return _session_payload(user)
 
 
