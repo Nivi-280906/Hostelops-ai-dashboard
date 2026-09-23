@@ -10,34 +10,33 @@ so the whole pipeline runs end-to-end with a single command:
 After this finishes, run:
     python backend_api.py
 Then open:  http://localhost:5000
+
+Note: AI model training is intentionally NOT run here. At this point
+the database is empty by design (hostels/rooms are only created later,
+via the Sign Up / onboarding flow in auth.py + backend_api.py). Training
+models against an empty occupancy_log crashes with a KeyError. Models
+are instead trained/updated on demand once real hostel data exists
+(see ai.detect_anomalies calls in backend_api.py).
 -------------------------------------------------------
 """
 
 import database as db
 import data_generator as gen
-import ai_models as ai
 import auth
 
 
 def main():
     print("=" * 60)
-    print("STEP 1/4: Initializing database schema...")
+    print("STEP 1/3: Initializing database schema...")
     db.init_db()
 
     print("=" * 60)
-    print("STEP 2/4: Seeding default login accounts...")
+    print("STEP 2/3: Seeding default login accounts...")
     auth.seed_default_users()
 
     print("=" * 60)
-    print("STEP 3/4: Generating synthetic hostel sensor data...")
+    print("STEP 3/3: Generating synthetic hostel sensor data...")
     gen.reset_and_seed()
-
-    print("=" * 60)
-    print("STEP 4/4: Training AI models (forecasting + anomaly detection)...")
-    ai.train_all_models()
-    ai.detect_anomalies("electricity")
-    ai.detect_anomalies("water")
-    ai.detect_anomalies("wifi")
 
     print("=" * 60)
     print("SETUP COMPLETE \u2705")
