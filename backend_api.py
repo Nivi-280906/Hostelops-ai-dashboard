@@ -104,7 +104,10 @@ def require_auth(role=None):
 
 @app.route("/api/health")
 def health():
-    return jsonify({"status": "ok"})
+    # "firebase" tells you at a glance (locally or on Render) whether the
+    # service-account key was found/valid - the #1 cause of login/signup
+    # failing after deploy. No secrets are exposed here.
+    return jsonify({"status": "ok", "firebase": auth.firebase_status()})
 
 
 # ---------------- Auth ----------------
@@ -132,7 +135,9 @@ def signup():
         import traceback; traceback.print_exc()
         return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
     if "error" in result:
-        return jsonify(result), 409 if "already exists" in result["error"] else 401
+        err = result["error"]
+        code = 409 if "already exists" in err else 401 if "verify" in err.lower() else 400
+        return jsonify(result), code
     return jsonify(result), 201
 
 

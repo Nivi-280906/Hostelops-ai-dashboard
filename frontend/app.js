@@ -3,7 +3,11 @@
    app.js
    ========================================================== */
 
-const API_BASE = (location.protocol === "file:" || (location.port && location.port !== "5000"))
+// Same-origin ("/api") everywhere the Flask app serves the page - localhost:5000
+// AND the deployed Render URL. Only fall back to the absolute local URL when the
+// page is opened from a file or a different local dev server (e.g. Live Server).
+const _isLocalHost = ["localhost", "127.0.0.1", ""].includes(location.hostname);
+const API_BASE = (location.protocol === "file:" || (_isLocalHost && location.port && location.port !== "5000"))
   ? "http://127.0.0.1:5000/api"
   : "/api";
 
@@ -317,7 +321,15 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
   try {
     const cred = await firebase.auth().signInWithEmailAndPassword(username, password);
     const idToken = await cred.user.getIdToken();
-    const data = await api("login", { method: "POST", body: { id_token: idToken }, auth: false });
+    let data;
+    try {
+      data = await api("login", { method: "POST", body: { id_token: idToken }, auth: false });
+    } catch (backendErr) {
+      // Firebase said yes but our backend said no (pending approval, server
+      // misconfigured, ...) - don't leave a half-signed-in browser session.
+      try { await firebase.auth().signOut(); } catch (_) { /* ignore */ }
+      throw backendErr;
+    }
     applyAuthSession(data);
     await routeAfterAuth();
   } catch (err) {
@@ -348,8 +360,53 @@ function firebaseErrorMessage(err) {
       return "Too many attempts. Please wait a moment and try again.";
     case "auth/network-request-failed":
       return "Cannot reach Firebase. Check your internet connection.";
+    case "auth/operation-not-allowed":
+      return "Email/Password sign-in is not enabled in the Firebase project (Firebase Console -> Authentication -> Sign-in method).";
+    case "auth/unauthorized-domain":
+      return "This website's domain isn't authorised in Firebase (Firebase Console -> Authentication -> Settings -> Authorized domains).";
+    case "auth/api-key-not-valid.-please-pass-a-valid-api-key.":
+    case "auth/invalid-api-key":
+      return "The Firebase API key in firebase-config.js is invalid.";
     default:
       return (err && err.message) || "Something went wrong. Please try again.";
+  }
+}
+
+/* Creates the Firebase account for a signup - or, if that email already exists
+   in Firebase, signs into it with the password just typed. The second case
+   recovers an "orphan": a Firebase account left behind by an earlier signup
+   attempt whose backend step failed, which otherwise blocks that email forever
+   with "already in use". Returns { cred, created }. */
+async function firebaseCredentialForSignup(email, password) {
+  try {
+    const cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
+    return { cred, created: true };
+  } catch (err) {
+    if (err && err.code === "auth/email-already-in-use") {
+      try {
+        const cred = await firebase.auth().signInWithEmailAndPassword(email, password);
+        return { cred, created: false };
+      } catch (_) {
+        throw { code: "signup/email-taken", message: "That email already has an account. Use Sign In (or Forgot password) instead." };
+      }
+    }
+    throw err;
+  }
+}
+
+/* Runs the backend half of a signup. If it fails, undo the Firebase half so the
+   person can just fix the problem and submit again. */
+async function backendSignupOrRollback(cred, created, path, body) {
+  try {
+    const idToken = await cred.user.getIdToken();
+    return await api(path, { method: "POST", body: { ...body, id_token: idToken }, auth: false });
+  } catch (err) {
+    if (created) {
+      try { await cred.user.delete(); } catch (_) { try { await firebase.auth().signOut(); } catch (__) {} }
+    } else {
+      try { await firebase.auth().signOut(); } catch (_) { /* ignore */ }
+    }
+    throw err;
   }
 }
 
@@ -375,13 +432,9 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
     }
     btn.querySelector("span").textContent = "Requesting access…";
     try {
-      const cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
-      const idToken = await cred.user.getIdToken();
-      const data = await api("warden-signup", {
-        method: "POST",
-        body: { college_name, hostel_id: Number(hostel_id), floor: Number(floor), id_token: idToken },
-        auth: false,
-      });
+      const { cred, created } = await firebaseCredentialForSignup(email, password);
+      const data = await backendSignupOrRollback(cred, created, "warden-signup",
+        { college_name, hostel_id: Number(hostel_id), floor: Number(floor) });
       if (data.status === "pending") {
         // The Firebase account exists but our local row is PENDING, so sign
         // this browser session back out - there's nothing to log into yet.
@@ -391,9 +444,7 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
         document.getElementById("signupPendingSuccess").scrollIntoView({ behavior: "smooth", block: "center" });
       }
     } catch (err) {
-      errEl.textContent = err && err.code === "auth/email-already-in-use"
-        ? "That email is already registered here."
-        : (err && err.message) || firebaseErrorMessage(err);
+      errEl.textContent = firebaseErrorMessage(err);
       errEl.hidden = false;
       errEl.scrollIntoView({ behavior: "smooth", block: "center" });
     } finally {
@@ -407,19 +458,13 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
   try {
     const hostel_name = document.getElementById("signupHostelName").value.trim();
     const hostel_type = document.getElementById("signupHostelType").value;
-    const cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
-    const idToken = await cred.user.getIdToken();
-    const data = await api("signup", {
-      method: "POST",
-      body: { college_name, id_token: idToken, hostel_name, hostel_type },
-      auth: false,
-    });
+    const { cred, created } = await firebaseCredentialForSignup(email, password);
+    const data = await backendSignupOrRollback(cred, created, "signup",
+      { college_name, hostel_name, hostel_type });
     applyAuthSession(data);
     await routeAfterAuth();
   } catch (err) {
-    errEl.textContent = err && err.code === "auth/email-already-in-use"
-      ? "That email is already registered to a college here. Each email can only belong to one college — use a different email, or switch to Sign In if this college already has an account."
-      : firebaseErrorMessage(err);
+    errEl.textContent = firebaseErrorMessage(err);
     errEl.hidden = false;
   } finally {
     btn.disabled = false;
