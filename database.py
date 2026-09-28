@@ -20,7 +20,7 @@ Tables:
 import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "hostel_data.db")
+DB_PATH = os.environ.get("DB_PATH") or os.path.join(os.path.dirname(__file__), "hostel_data.db")
 
 
 def get_connection():
