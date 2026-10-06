@@ -1,4 +1,4 @@
-# Secrets - NEVER commit real values
+# Secrets - NEVER commit
 firebase-service-account.json
 *.env
 .env*
@@ -7,6 +7,7 @@ firebase-service-account.json
 __pycache__/
 *.pyc
 
-# Generated at runtime by setup_project.py
-hostel_data.db
+# NOTE: hostel_data.db is intentionally COMMITTED for the demo deploy
+# (it holds the admin/warden rows that match your Firebase accounts).
+# models/*.joblib are retrained automatically on the server if missing.
 models/*.joblib
