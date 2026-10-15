@@ -759,7 +759,7 @@ const TOOLBAR_SCOPE = {
   water: { hostel: true, room: true, history: true, horizon: true, viewScope: true },
   wifi: { hostel: true, room: true, history: true, horizon: true, viewScope: true },
   predictions: { hostel: true, room: true, history: true, horizon: true, viewScope: true },
-  overview: { hostel: true, room: true, history: false, horizon: false },
+  overview: { hostel: true, room: true, history: false, horizon: false, viewScope: true },
   comparison: { hostel: false, room: false, history: false, horizon: false },
 };
 const DEFAULT_TOOLBAR_SCOPE = { hostel: true, room: false, history: false, horizon: false };
@@ -897,8 +897,7 @@ async function pollTick() {
 async function refreshKPIs() {
   // Include room_id so the Overview KPIs/alerts reflect the room & floor
   // currently selected in the toolbar, not just the whole hostel.
-  const params = withHostel();
-  if (state.roomId) params.room_id = state.roomId;
+  const params = withHostel(resourceScopeParams());
   const data = await api(`overview/kpis?${new URLSearchParams(params).toString()}`);
 
   // Monitored Facilities
@@ -1089,7 +1088,7 @@ async function loadResourceSection(resource) {
     // actually see *when* during the day usage happens across a whole week
     // (not just a single day like "24h Academic Routine", and not just daily
     // totals like "Daily Trend"). Backed by real stored hourly data.
-    const data = await api(`diurnal/hourly_range?room_id=${state.roomId}&days=7`);
+    const data = await api(`diurnal/hourly_range?${new URLSearchParams({ ...resourceScopeParams(), days: 7 }).toString()}`);
     const points = data.points || [];
     const labels = points.map(p => p.time_label);
     const values = points.map(p => (resource === "electricity" ? p.kwh : p.liters));
@@ -1131,7 +1130,7 @@ async function loadResourceSection(resource) {
 
   if (isDiurnal) {
     // Load 24-Hour Diurnal Hourly Telemetry (Academic Timetable Aligned)
-    const data = await api(`diurnal/hourly?room_id=${state.roomId}`);
+    const data = await api(`diurnal/hourly?${new URLSearchParams(resourceScopeParams()).toString()}`);
     const hours = data.hours || [];
     const labels = hours.map(h => h.time_label);
     const values = hours.map(h => resource === "electricity" ? h.kwh : h.liters);

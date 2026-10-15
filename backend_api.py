@@ -564,16 +564,19 @@ def diurnal_hourly_range():
     room, so usage-by-time-of-day patterns are visible across a full week
     rather than just a single day. Backed by real stored hourly readings
     (up to the last 14 days) - not interpolated or fabricated."""
-    room_id = request.args.get("room_id", type=int)
     days = request.args.get("days", default=7, type=int)
     days = max(1, min(days, 14))
 
-    if not room_id:
-        return jsonify({"error": "room_id is required"}), 400
-    if not _room_scoped(room_id):
-        return jsonify({"error": "Room not found"}), 404
+    # Room / Floor / Hostel scope (room_id, or hostel_id[+floor])
+    room_ids, mode, err = _resolve_resource_scope()
+    if err:
+        return err
+    room_id = room_ids[0] if mode == "room" else None
 
-    rows = db.get_hourly_readings_range(room_id=room_id, days=days)
+    if mode == "room":
+        rows = db.get_hourly_readings_range(room_id=room_id, days=days)
+    else:
+        rows = db.get_hourly_readings_range_multi(room_ids, days=days)
 
     points = []
     for r in rows:
@@ -593,7 +596,7 @@ def diurnal_hourly_range():
             "devices": int(r.get("connected_devices", 0)),
         })
 
-    return jsonify({"room_id": room_id, "days": days, "points": points})
+    return jsonify({"room_id": room_id, "scope": mode, "days": days, "points": points})
 
 
 @app.route("/api/diurnal/hourly")
@@ -603,18 +606,25 @@ def diurnal_hourly():
     hostel_id = request.args.get("hostel_id", type=int)
     day_type = request.args.get("day_type", default="weekday")
 
+    floor = request.args.get("floor", type=int)
     if room_id and not _room_scoped(room_id):
         return jsonify({"error": "Room not found"}), 404
     if hostel_id and not _hostel_scoped(hostel_id):
         return jsonify({"error": "Hostel not found"}), 404
 
+    # Floor / hostel totals: sum the latest stored day across those rooms
+    if not room_id and hostel_id:
+        if request.user.get("role") == "warden" and request.user.get("floor") is not None:
+            floor = request.user.get("floor")
+        scope_room_ids = db.room_ids_for_scope(hostel_id=hostel_id, floor=floor)
+        rows = db.get_hourly_readings_multi(scope_room_ids)
+        if not rows:
+            rows = db.get_diurnal_profile(hostel_id=hostel_id, day_type=day_type)
     # If specific room requested, get 24-hour recorded readings or profile
-    if room_id:
+    elif room_id:
         rows = db.get_hourly_readings(room_id=room_id)
         if not rows:
             rows = db.get_diurnal_profile(room_id=room_id, day_type=day_type)
-    elif hostel_id:
-        rows = db.get_diurnal_profile(hostel_id=hostel_id, day_type=day_type)
     else:
         rows = db.get_diurnal_profile(day_type=day_type)
 
@@ -832,11 +842,16 @@ def overview_kpis():
     if room_id and not _room_scoped(room_id):
         return jsonify({"error": "Room not found"}), 404
 
+    floor = request.args.get("floor", type=int)
+
     target_hostel_ids = [hostel_id] if hostel_id else [h["hostel_id"] for h in hostels_all]
     if room_id:
         rooms_list = [r for r in db.get_rooms() if r["room_id"] == room_id]
     else:
-        rooms_list = _apply_floor_scope([r for r in db.get_rooms() if r.get("hostel_id") in target_hostel_ids])
+        rooms_list = [r for r in db.get_rooms() if r.get("hostel_id") in target_hostel_ids]
+        if floor is not None:
+            rooms_list = [r for r in rooms_list if r.get("floor") == floor]
+        rooms_list = _apply_floor_scope(rooms_list)
     room_ids = {r["room_id"] for r in rooms_list}
 
     total_capacity = sum(r["capacity"] for r in rooms_list)
@@ -887,8 +902,8 @@ def overview_kpis():
 
     # Alerts & Risk
     active_alerts = [a for a in db.get_alerts(hostel_id=hostel_id) if a.get("status", "ACTIVE") == "ACTIVE"]
-    if room_id:
-        active_alerts = [a for a in active_alerts if a.get("room_id") == room_id]
+    if room_id or floor is not None:
+        active_alerts = [a for a in active_alerts if a.get("room_id") in room_ids]
     high_priority_alerts = [a for a in active_alerts if a.get("severity") in ("high", "critical")]
     high_risk_rooms = len(set(a["room_id"] for a in high_priority_alerts))
 

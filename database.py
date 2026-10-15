@@ -809,6 +809,56 @@ def get_hourly_readings_range(room_id, days=7):
     return rows
 
 
+def get_hourly_readings_range_multi(room_ids, days=7):
+    """Floor-/hostel-level version of get_hourly_readings_range: hourly
+    readings summed across many rooms, per (date, hour)."""
+    if not room_ids:
+        return []
+    ph = ",".join("?" for _ in room_ids)
+    latest = fetch_one(f"SELECT MAX(reading_date) as max_d FROM hourly_readings WHERE room_id IN ({ph})", tuple(room_ids))
+    if not latest or not latest.get("max_d"):
+        return []
+    from datetime import datetime as _dt, timedelta
+    end_date = _dt.strptime(latest["max_d"], "%Y-%m-%d").date()
+    start_date = end_date - timedelta(days=days - 1)
+    return fetch_all(
+        f"""SELECT reading_date, hour,
+                   MAX(session_type) AS session_type,
+                   MAX(is_class_hour) AS is_class_hour,
+                   SUM(units_kwh) AS units_kwh,
+                   SUM(liters) AS liters,
+                   SUM(data_gb) AS data_gb,
+                   SUM(connected_devices) AS connected_devices
+            FROM hourly_readings
+            WHERE room_id IN ({ph}) AND reading_date >= ? AND reading_date <= ?
+            GROUP BY reading_date, hour ORDER BY reading_date ASC, hour ASC""",
+        tuple(room_ids) + (start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")),
+    )
+
+
+def get_hourly_readings_multi(room_ids):
+    """Latest stored day's 24 hourly readings, summed across many rooms."""
+    if not room_ids:
+        return []
+    ph = ",".join("?" for _ in room_ids)
+    latest = fetch_one(f"SELECT MAX(reading_date) as max_d FROM hourly_readings WHERE room_id IN ({ph})", tuple(room_ids))
+    if not latest or not latest.get("max_d"):
+        return []
+    return fetch_all(
+        f"""SELECT hour,
+                   MAX(session_type) AS session_type,
+                   MAX(is_class_hour) AS is_class_hour,
+                   SUM(units_kwh) AS units_kwh,
+                   SUM(liters) AS liters,
+                   SUM(data_gb) AS data_gb,
+                   SUM(connected_devices) AS connected_devices
+            FROM hourly_readings
+            WHERE room_id IN ({ph}) AND reading_date = ?
+            GROUP BY hour ORDER BY hour ASC""",
+        tuple(room_ids) + (latest["max_d"],),
+    )
+
+
 def get_diurnal_profile(room_id=None, hostel_id=None, day_type="weekday"):
     """
     Computes an average 24-hour diurnal profile across rooms/hostels,
