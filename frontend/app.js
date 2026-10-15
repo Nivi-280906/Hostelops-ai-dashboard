@@ -672,6 +672,14 @@ function enterApp() {
   document.getElementById("hostelSelectGroup").hidden = state.role === "warden";
 
   loadRooms().then(() => {
+    // Wardens open on the complete-floor total (their assigned floor, or the
+    // whole hostel if they manage every floor); Room stays selectable.
+    if (state.role === "warden") {
+      state.viewScope = state.floor != null ? "floor" : "hostel";
+      if (state.floor != null) state.viewFloor = state.floor;
+    } else {
+      state.viewScope = "room";
+    }
     switchSection(state.role === "staff" ? "maintenance" : "overview");
     startClock();
     startPolling();
